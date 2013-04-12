@@ -39,6 +39,15 @@ module Rapns
         reflect(:notification_change_reg_id, @notification, results)
       end
 
+      def delete_bad_id(response)
+        with_database_reconnect_and_retry do
+          @notification.delivered = true
+          @notification.delivered_at = Time.now
+          @notification.save!(:validate => false)
+        end
+        reflect(:notification_mark_bad_id, @notification, response)
+      end
+
       def mark_failed(code, description)
         with_database_reconnect_and_retry do
           @notification.delivered = false

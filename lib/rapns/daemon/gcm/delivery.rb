@@ -7,6 +7,7 @@ module Rapns
 
         GCM_URI = URI.parse('https://android.googleapis.com/gcm/send')
         UNAVAILABLE_STATES = ['Unavailable', 'InternalServerError']
+        BAD_REGISTRATION = ["InvalidRegistration", "NotRegistered"]
 
         def initialize(app, http, notification)
           @app = app
@@ -48,7 +49,6 @@ module Rapns
           if body['failure'].to_i == 0
             if body['canonical_ids'].to_i > 0
               mark_canonical(body['results'])
-              # raise Rapns::DeliveryError.new(response.code, @notification.id, body['results'])
             else 
               mark_delivered
               Rapns.logger.info("[#{@app.name}] #{@notification.id} sent to #{@notification.registration_ids.join(', ')}")
@@ -67,8 +67,10 @@ module Rapns
 
           if body['success'].to_i == 0 && errors.values.all? { |error| error.in?(UNAVAILABLE_STATES) }
             all_devices_unavailable(response)
-          elsif errors.values.any? { |error| error.in?(UNAVAILABLE_STATES) }
+          elsif errors.values.all? { |error| error.in?(UNAVAILABLE_STATES) }
             some_devices_unavailable(response, errors)
+          elsif errors.values.any? {|error| error.in?(BAD_REGISTRATION)}
+            devices_badregistration(body['results'])
           else
             raise Rapns::DeliveryError.new(nil, @notification.id, describe_errors(errors))
           end
@@ -103,6 +105,10 @@ module Rapns
           with_database_reconnect_and_retry { new_notification.save! }
           raise Rapns::DeliveryError.new(nil, @notification.id,
             describe_errors(errors) + " #{unavailable_idxs.join(', ')} will be retried as notification #{new_notification.id}.")
+        end
+
+        def devices_badregistration(errors)
+          delete_bad_id(errors)
         end
 
         def build_new_notification(response, idxs)
