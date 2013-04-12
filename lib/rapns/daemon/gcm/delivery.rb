@@ -46,8 +46,13 @@ module Rapns
           body = multi_json_load(response.body)
 
           if body['failure'].to_i == 0
-            mark_delivered
-            Rapns.logger.info("[#{@app.name}] #{@notification.id} sent to #{@notification.registration_ids.join(', ')}")
+            if body['canonical_ids'].to_i > 0
+              mark_canonical(body['results'])
+              # raise Rapns::DeliveryError.new(response.code, @notification.id, body['results'])
+            else 
+              mark_delivered
+              Rapns.logger.info("[#{@app.name}] #{@notification.id} sent to #{@notification.registration_ids.join(', ')}")
+            end
           else
             handle_errors(response, body)
           end

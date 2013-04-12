@@ -13,7 +13,7 @@ module Rapns
     REFLECTIONS = [
       :apns_feedback, :notification_enqueued, :notification_delivered,
       :notification_failed, :notification_will_retry, :apns_connection_lost,
-      :error
+      :error, :notification_change_reg_id
     ]
 
     REFLECTIONS.each do |reflection|
